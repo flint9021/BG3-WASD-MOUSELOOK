@@ -1,0 +1,50 @@
+name: Build BG3WASD
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch DKUtil and SDL2 if missing
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "extern/DKUtil/CMakeLists.txt")) {
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "extern/DKUtil"
+            git clone --depth 1 https://github.com/gottyduke/DKUtil.git extern/DKUtil
+          }
+          if (-not (Test-Path "extern/SDL2/cmake/sdl2-config.cmake")) {
+            New-Item -ItemType Directory -Force -Path "extern" | Out-Null
+            Invoke-WebRequest -Uri "https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-devel-2.28.5-VC.zip" -OutFile "sdl2.zip"
+            Expand-Archive -Path "sdl2.zip" -DestinationPath "extern" -Force
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "extern/SDL2"
+            Move-Item "extern/SDL2-2.28.5" "extern/SDL2"
+            Remove-Item "sdl2.zip"
+          }
+
+      - name: Configure and Build Release DLL
+        shell: pwsh
+        run: |
+          $env:VCPKG_ROOT = $env:VCPKG_INSTALLATION_ROOT
+          $env:BG3PATH = "$PWD\build\out"
+          $env:BG3PATH2 = "$PWD\build\out"
+          New-Item -ItemType Directory -Force -Path "$PWD\build\out\bin\NativeMods" | Out-Null
+          if (Test-Path "$env:VCPKG_ROOT\.git") {
+            git -C "$env:VCPKG_ROOT" pull --quiet
+          }
+          cmake -B build -S . --preset=REL -DPLUGIN_MODE:BOOL=TRUE
+          cmake --build build --config Release
+
+      - name: Upload BG3WASD DLL and Config
+        uses: actions/upload-artifact@v4
+        with:
+          name: BG3WASD-Fixed-Mouselook
+          path: |
+            build/Release/BG3WASD.dll
+            package/BG3WASD.toml
