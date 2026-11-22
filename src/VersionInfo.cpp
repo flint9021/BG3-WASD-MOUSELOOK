@@ -18,11 +18,9 @@ void VersionInfo::PrintModVersion(HMODULE a_hModule)
 
 void VersionInfo::PrintGameVersion()
 {
-    std::string_view process_name_stringview = dku::Hook::GetProcessName();
-    std::string process_name_string = { process_name_stringview.begin(),
-        process_name_stringview.end() };
-    std::wstring process_name_wstring(process_name_string.begin(), process_name_string.end());
-    VersionInfo::PrintModuleVersion(process_name_wstring);
+    WCHAR game_exe_file_name[_MAX_PATH];
+    GetModuleFileName(nullptr, game_exe_file_name, _MAX_PATH);
+    VersionInfo::PrintModuleVersion(game_exe_file_name);
 }
 
 void VersionInfo::PrintModuleVersion(std::wstring file_name)
